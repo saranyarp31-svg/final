@@ -13,7 +13,7 @@ from legal_db import LEGAL_DB
 st.set_page_config(page_title="Rural ACT - Tamil Legal Translator", layout="wide")
 
 st.title("🌾 Rural ACT – Tamil Legal Awareness Translator")
-st.write("English → Tamil Translation • Legal Detection • Tamil Voice Output")
+st.write("English → Tamil Translation • Legal Detection • Tamil Voice Output • Feedback System")
 
 
 # ---------------------------------------------------
@@ -85,10 +85,10 @@ user_input = st.text_area("Enter English text to translate:", height=160)
 # ---------------------------------------------------
 if st.button("Translate & Analyze"):
     if not user_input.strip():
-        st.warning("Please enter some text.")
+        st.warning("⚠️ Please enter some text.")
         st.stop()
 
-    # Translate to Tamil
+    # 🔹 Translate to Tamil
     try:
         tamil_text = GoogleTranslator(source="auto", target="ta").translate(user_input)
         st.subheader("📌 Tamil Translation")
@@ -97,7 +97,7 @@ if st.button("Translate & Analyze"):
         st.error("Translation error: " + str(e))
         tamil_text = ""
 
-    # Tamil Voice Output for Translation
+    # 🔹 Tamil Voice Output for Translation
     st.subheader("🔊 Tamil Voice Output")
     audio_file = generate_audio(tamil_text)
 
@@ -106,7 +106,7 @@ if st.button("Translate & Analyze"):
     else:
         st.warning("Voice not available right now.")
 
-    # Legal Section Detection
+    # 🔹 Legal Section Detection
     st.subheader("⚖️ Legal Awareness")
     legal = detect_legal_section(user_input)
 
@@ -118,10 +118,9 @@ if st.button("Translate & Analyze"):
         st.info(f"Example: {legal['example']}")
         section_name = legal['section']
 
-        # Tamil audio for legal explanation
+        # 🔊 Tamil audio for legal section
         st.write("### 🔊 Legal Explanation (Tamil Voice)")
-        legal_voice_text = legal["tamil"]
-        legal_audio = generate_audio(legal_voice_text)
+        legal_audio = generate_audio(legal["tamil"])
 
         if legal_audio:
             st.audio(legal_audio)
@@ -134,32 +133,45 @@ if st.button("Translate & Analyze"):
 
 
     # ---------------------------------------------------
-    # Feedback Section
+    # ⭐ FULLY FIXED FEEDBACK SYSTEM
     # ---------------------------------------------------
     st.subheader("📝 Feedback")
 
-    col1, col2 = st.columns(2)
+    feedback_choice = st.radio(
+        "Did you understand the explanation?",
+        ["👍 Yes, I understand", "👎 No, I don't understand"]
+    )
 
-    if col1.button("✅ I Understand"):
-        save_feedback(user_input, tamil_text, section_name, "Understand")
-        st.success("Feedback saved successfully!")
+    # If user understands
+    if feedback_choice == "👍 Yes, I understand":
+        if st.button("Save Feedback"):
+            save_feedback(user_input, tamil_text, section_name, "Understand")
+            st.success("✅ Feedback saved successfully!")
 
-    if col2.button("❌ I Don't Understand"):
-        st.write("### Choose what you need help with:")
-
-        need = st.radio(
+    # If user does NOT understand
+    else:
+        st.write("### What do you need help with?")
+        need_help = st.radio(
             "",
-            ["📝 More Text Explanation", "🔊 Better Voice", "📝🔊 Both"],
+            [
+                "📝 More Text Explanation",
+                "🔊 Better Voice",
+                "📝🔊 Both Text & Voice"
+            ]
         )
 
-        save_feedback(user_input, tamil_text, section_name, "Not Understand", need)
-        st.error("Feedback saved. We will improve the explanation!")
+        if st.button("Save Feedback"):
+            save_feedback(user_input, tamil_text, section_name, "Not Understand", need_help)
+            st.error("❌ Feedback saved. We will improve the explanation!")
 
 
+# ---------------------------------------------------
 # Developer Mode - View Feedback Log
+# ---------------------------------------------------
 if st.checkbox("Show Feedback Log (Developer Only)"):
     if os.path.exists("user_feedback.csv"):
         st.dataframe(pd.read_csv("user_feedback.csv").tail(20))
     else:
         st.info("No feedback available yet.")
+
 
