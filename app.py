@@ -42,7 +42,7 @@ def generate_audio(text):
 
 
 # ---------------------------------------------------
-# Save Feedback
+# Save Feedback to CSV
 # ---------------------------------------------------
 def save_feedback(original, tamil, section, fb_type, fb_detail=""):
     data = {
@@ -75,17 +75,20 @@ def detect_legal_section(text):
 
 
 # ---------------------------------------------------
-# UI
+# UI Input Box
 # ---------------------------------------------------
 user_input = st.text_area("Enter English text to translate:", height=160)
 
 
+# ---------------------------------------------------
+# Main Process
+# ---------------------------------------------------
 if st.button("Translate & Analyze"):
     if not user_input.strip():
         st.warning("Please enter some text.")
         st.stop()
 
-    # Translation
+    # Translate to Tamil
     try:
         tamil_text = GoogleTranslator(source="auto", target="ta").translate(user_input)
         st.subheader("📌 Tamil Translation")
@@ -94,14 +97,14 @@ if st.button("Translate & Analyze"):
         st.error("Translation error: " + str(e))
         tamil_text = ""
 
-    # Tamil Voice Output
+    # Tamil Voice Output for Translation
     st.subheader("🔊 Tamil Voice Output")
     audio_file = generate_audio(tamil_text)
 
     if audio_file:
         st.audio(audio_file)
     else:
-        st.warning("Voice not available now.")
+        st.warning("Voice not available right now.")
 
     # Legal Section Detection
     st.subheader("⚖️ Legal Awareness")
@@ -114,28 +117,49 @@ if st.button("Translate & Analyze"):
         st.write(f"**Helpline:** {legal['helpline']}")
         st.info(f"Example: {legal['example']}")
         section_name = legal['section']
+
+        # Tamil audio for legal explanation
+        st.write("### 🔊 Legal Explanation (Tamil Voice)")
+        legal_voice_text = legal["tamil"]
+        legal_audio = generate_audio(legal_voice_text)
+
+        if legal_audio:
+            st.audio(legal_audio)
+        else:
+            st.warning("Legal audio unavailable.")
+
     else:
         st.info("No legal issues detected.")
         section_name = "None"
 
+
+    # ---------------------------------------------------
     # Feedback Section
+    # ---------------------------------------------------
     st.subheader("📝 Feedback")
 
     col1, col2 = st.columns(2)
 
     if col1.button("✅ I Understand"):
         save_feedback(user_input, tamil_text, section_name, "Understand")
-        st.success("Thanks! Your feedback is saved.")
+        st.success("Feedback saved successfully!")
 
     if col2.button("❌ I Don't Understand"):
-        need = st.radio("What do you need more help with?", ["Text", "Voice", "Both"])
+        st.write("### Choose what you need help with:")
+
+        need = st.radio(
+            "",
+            ["📝 More Text Explanation", "🔊 Better Voice", "📝🔊 Both"],
+        )
+
         save_feedback(user_input, tamil_text, section_name, "Not Understand", need)
-        st.error("Feedback saved. We’ll improve it.")
+        st.error("Feedback saved. We will improve the explanation!")
 
 
-# Developer Mode
+# Developer Mode - View Feedback Log
 if st.checkbox("Show Feedback Log (Developer Only)"):
     if os.path.exists("user_feedback.csv"):
         st.dataframe(pd.read_csv("user_feedback.csv").tail(20))
     else:
         st.info("No feedback available yet.")
+
