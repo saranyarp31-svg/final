@@ -10,10 +10,10 @@ from legal_db import LEGAL_DB
 # ---------------------------------------------------
 # Streamlit Page Setup
 # ---------------------------------------------------
-st.set_page_config(page_title="Rural ACT - Tamil Legal Translator", layout="wide")
+st.set_page_config(page_title="Rural ACT", layout="wide")
 
-st.title("🌾 Rural ACT – Tamil Legal Awareness Translator")
-st.write("English → Tamil Translation • Legal Detection • Tamil Voice Output • Feedback System")
+st.title("🌾 Rural ACT – தமிழ் சட்ட விழிப்புணர்வு")
+st.write("English → Tamil Translation • Tamil Voice • Legal Awareness • Smart Feedback")
 
 
 # ---------------------------------------------------
@@ -44,27 +44,19 @@ def generate_audio(text):
 # ---------------------------------------------------
 # Save Feedback to CSV
 # ---------------------------------------------------
-def save_feedback(original, tamil, section, fb_type, fb_detail=""):
-    data = {
-        "timestamp": [datetime.now().isoformat()],
-        "english_input": [original],
-        "tamil_output": [tamil],
-        "legal_section": [section],
-        "feedback_type": [fb_type],
-        "feedback_detail": [fb_detail]
-    }
+def append_feedback(data):
+    df = pd.DataFrame([data])
 
-    df = pd.DataFrame(data)
+    file = "user_feedback.csv"
 
-    fname = "user_feedback.csv"
-    if os.path.exists(fname):
-        df.to_csv(fname, mode="a", header=False, index=False)
+    if os.path.exists(file):
+        df.to_csv(file, mode="a", header=False, index=False)
     else:
-        df.to_csv(fname, index=False)
+        df.to_csv(file, index=False)
 
 
 # ---------------------------------------------------
-# Legal Keyword Detection
+# Detect Legal Section
 # ---------------------------------------------------
 def detect_legal_section(text):
     text_low = text.lower()
@@ -74,104 +66,142 @@ def detect_legal_section(text):
     return None
 
 
+# Initialize session variables
+if "show_detail_buttons" not in st.session_state:
+    st.session_state.show_detail_buttons = False
+if "last_input" not in st.session_state:
+    st.session_state.last_input = None
+
+
 # ---------------------------------------------------
 # UI Input Box
 # ---------------------------------------------------
-user_input = st.text_area("Enter English text to translate:", height=160)
+user_input = st.text_area("Enter English text:", height=150)
 
 
 # ---------------------------------------------------
-# Main Process
+# MAIN PROCESS
 # ---------------------------------------------------
 if st.button("Translate & Analyze"):
     if not user_input.strip():
-        st.warning("⚠️ Please enter some text.")
+        st.warning("⚠️ Please enter text.")
         st.stop()
 
-    # 🔹 Translate to Tamil
-    try:
-        tamil_text = GoogleTranslator(source="auto", target="ta").translate(user_input)
-        st.subheader("📌 Tamil Translation")
-        st.success(tamil_text)
-    except Exception as e:
-        st.error("Translation error: " + str(e))
-        tamil_text = ""
+    # Save input
+    st.session_state.last_input = user_input
 
-    # 🔹 Tamil Voice Output for Translation
-    st.subheader("🔊 Tamil Voice Output")
+    # Tamil Translation
+    tamil_text = GoogleTranslator(source="auto", target="ta").translate(user_input)
+    st.session_state["last_tamil"] = tamil_text
+
+    st.subheader("📌 தமிழ் மொழிபெயர்ப்பு:")
+    st.success(tamil_text)
+
+    # Tamil Voice Output
+    st.write("### 🔊 தமிழ் குரல்")
     audio_file = generate_audio(tamil_text)
-
     if audio_file:
         st.audio(audio_file)
-    else:
-        st.warning("Voice not available right now.")
 
-    # 🔹 Legal Section Detection
-    st.subheader("⚖️ Legal Awareness")
+    # Legal Detection
+    st.subheader("⚖️ சட்ட விழிப்புணர்வு (தமிழில்):")
+
     legal = detect_legal_section(user_input)
 
     if legal:
-        st.write(f"**Section:** {legal['section']}")
-        st.write(f"**Tamil Explanation:** {legal['tamil']}")
-        st.write(f"**Punishment:** {legal['punishment']}")
-        st.write(f"**Helpline:** {legal['helpline']}")
-        st.info(f"Example: {legal['example']}")
-        section_name = legal['section']
+        st.session_state["last_sections"] = [legal["section"]]
 
-        # 🔊 Tamil audio for legal section
-        st.write("### 🔊 Legal Explanation (Tamil Voice)")
+        st.markdown(f"""
+### ⚖️ **{legal['section']}**
+**{legal['tamil']}**
+
+**தண்டனை:** {legal['punishment']}  
+**உதவி எண்:** {legal['helpline']}  
+**📚 உதாரணம்:** {legal['example']}
+""")
+
+        # Tamil voice for legal explanation
         legal_audio = generate_audio(legal["tamil"])
-
+        st.write("### 🔊 சட்ட விளக்கம் (குரல்)")
         if legal_audio:
             st.audio(legal_audio)
-        else:
-            st.warning("Legal audio unavailable.")
 
     else:
-        st.info("No legal issues detected.")
-        section_name = "None"
-
-
-    # ---------------------------------------------------
-    # ⭐ FULLY FIXED FEEDBACK SYSTEM
-    # ---------------------------------------------------
-    st.subheader("📝 Feedback")
-
-    feedback_choice = st.radio(
-        "Did you understand the explanation?",
-        ["👍 Yes, I understand", "👎 No, I don't understand"]
-    )
-
-    # If user understands
-    if feedback_choice == "👍 Yes, I understand":
-        if st.button("Save Feedback"):
-            save_feedback(user_input, tamil_text, section_name, "Understand")
-            st.success("✅ Feedback saved successfully!")
-
-    # If user does NOT understand
-    else:
-        st.write("### What do you need help with?")
-        need_help = st.radio(
-            "",
-            [
-                "📝 More Text Explanation",
-                "🔊 Better Voice",
-                "📝🔊 Both Text & Voice"
-            ]
-        )
-
-        if st.button("Save Feedback"):
-            save_feedback(user_input, tamil_text, section_name, "Not Understand", need_help)
-            st.error("❌ Feedback saved. We will improve the explanation!")
+        st.session_state["last_sections"] = []
+        st.info("⚠️ சட்ட மீறல் தொடர்பான தகவல் எதுவும் இல்லை.")
 
 
 # ---------------------------------------------------
-# Developer Mode - View Feedback Log
+# FEEDBACK SECTION (Restored Working Version)
 # ---------------------------------------------------
-if st.checkbox("Show Feedback Log (Developer Only)"):
-    if os.path.exists("user_feedback.csv"):
-        st.dataframe(pd.read_csv("user_feedback.csv").tail(20))
-    else:
-        st.info("No feedback available yet.")
+st.divider()
+st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
+
+if st.session_state.last_input:
+    c1, c2 = st.columns(2)
+
+    with c1:
+        if st.button("✅ Understand"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state["last_input"],
+                "tamil_translation": st.session_state["last_tamil"],
+                "detected_sections": ",".join(st.session_state["last_sections"]),
+                "feedback": "Understand",
+                "feedback_detail": ""
+            })
+            st.success("✅ Feedback saved successfully.")
+
+    with c2:
+        if st.button("❌ Not Understand"):
+            st.session_state.show_detail_buttons = True
+
+    if st.session_state.show_detail_buttons:
+        st.markdown("### 😕 எது புரியவில்லை?")
+
+        d1, d2, d3 = st.columns(3)
+
+        if d1.button("📝 Text"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state["last_input"],
+                "tamil_translation": st.session_state["last_tamil"],
+                "detected_sections": ",".join(st.session_state["last_sections"]),
+                "feedback": "Not Understand",
+                "feedback_detail": "Text"
+            })
+            st.success("✔ Saved.")
+            st.session_state.show_detail_buttons = False
+
+        if d2.button("🔊 Voice"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state["last_input"],
+                "tamil_translation": st.session_state["last_tamil"],
+                "detected_sections": ",".join(st.session_state["last_sections"]),
+                "feedback": "Not Understand",
+                "feedback_detail": "Voice"
+            })
+            st.success("✔ Saved.")
+            st.session_state.show_detail_buttons = False
+
+        if d3.button("🔁 Both"):
+            append_feedback({
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "input_english": st.session_state["last_input"],
+                "tamil_translation": st.session_state["last_tamil"],
+                "detected_sections": ",".join(st.session_state["last_sections"]),
+                "feedback": "Not Understand",
+                "feedback_detail": "Both"
+            })
+            st.success("✔ Saved.")
+            st.session_state.show_detail_buttons = False
+
+else:
+    st.info("👇 முதலில் மொழிபெயர்ப்பு செய்து கருத்து அளிக்கவும்.")
+
+
+st.markdown("---")
+st.caption("Developed for rural Tamil users — Translation • Voice • Legal Awareness • Smart Feedback")
 
 
