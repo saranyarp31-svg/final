@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 from legal_db import LEGAL_DB
 
+
 # ---------------------------------------------------
 # Streamlit Page Setup
 # ---------------------------------------------------
@@ -16,22 +17,39 @@ st.write("English → Tamil Translation • Tamil Voice • Legal Awareness • 
 
 
 # ---------------------------------------------------
-# LibreTranslate – Stable Tamil Translation
+# LIBRE TRANSLATE (2-Tier Fallback, No Crash)
 # ---------------------------------------------------
 def translate_to_tamil(text):
-    url = "https://libretranslate.de/translate"  # free public endpoint
+
+    servers = [
+        "https://libretranslate.de/translate",  # primary
+        "https://translate.argosopentech.com/translate"  # backup
+    ]
+
     payload = {
         "q": text,
         "source": "en",
         "target": "ta",
         "format": "text"
     }
-    response = requests.post(url, data=payload)
-    return response.json()['translatedText']
+
+    for server in servers:
+        try:
+            response = requests.post(server, data=payload, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if "translatedText" in data:
+                    return data["translatedText"]
+
+        except Exception:
+            continue
+
+    return "⚠️ Translation service temporarily unavailable. Please try again."
 
 
 # ---------------------------------------------------
-# SIMPLE GOOGLE TTS (Lightweight, Reliable)
+# SIMPLE GOOGLE TTS (Lightweight + Reliable)
 # ---------------------------------------------------
 def generate_audio(text):
     try:
@@ -56,7 +74,7 @@ def generate_audio(text):
 
 
 # ---------------------------------------------------
-# Save Feedback to CSV
+# SAVE FEEDBACK TO CSV
 # ---------------------------------------------------
 def append_feedback(data):
     df = pd.DataFrame([data])
@@ -69,7 +87,7 @@ def append_feedback(data):
 
 
 # ---------------------------------------------------
-# Detect Legal Section
+# DETECT LEGAL SECTION
 # ---------------------------------------------------
 def detect_legal_section(text):
     text_low = text.lower()
@@ -80,7 +98,7 @@ def detect_legal_section(text):
 
 
 # ---------------------------------------------------
-# Session State Setup
+# SESSION STATE SETUP
 # ---------------------------------------------------
 if "show_detail_buttons" not in st.session_state:
     st.session_state.show_detail_buttons = False
@@ -89,13 +107,13 @@ if "last_input" not in st.session_state:
 
 
 # ---------------------------------------------------
-# UI Input Box
+# INPUT TEXT AREA
 # ---------------------------------------------------
 user_input = st.text_area("Enter English text:", height=150)
 
 
 # ---------------------------------------------------
-# MAIN PROCESS
+# MAIN PROCESS: TRANSLATE & ANALYZE
 # ---------------------------------------------------
 if st.button("Translate & Analyze"):
     if not user_input.strip():
@@ -104,7 +122,7 @@ if st.button("Translate & Analyze"):
 
     st.session_state.last_input = user_input
 
-    # Translate to Tamil using LibreTranslate
+    # Translate to Tamil (stable + fallback)
     tamil_text = translate_to_tamil(user_input)
     st.session_state["last_tamil"] = tamil_text
 
@@ -146,7 +164,7 @@ if st.button("Translate & Analyze"):
 
 
 # ---------------------------------------------------
-# FEEDBACK SECTION (Working Version)
+# FEEDBACK SECTION (WORKING + SMART UI)
 # ---------------------------------------------------
 st.divider()
 st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
@@ -164,13 +182,13 @@ if st.session_state.last_input:
                 "feedback": "Understand",
                 "feedback_detail": ""
             })
-            st.success("✅ Feedback saved successfully.")
+            st.success("✔ Feedback saved successfully.")
 
     with c2:
         if st.button("❌ Not Understand"):
             st.session_state.show_detail_buttons = True
 
-    # Show detailed feedback options
+    # Extra options when user selects "Not Understand"
     if st.session_state.show_detail_buttons:
         st.markdown("### 😕 எது புரியவில்லை?")
 
@@ -216,7 +234,11 @@ else:
     st.info("👇 முதலில் மொழிபெயர்ப்பு செய்து கருத்து அளிக்கவும்.")
 
 
+# ---------------------------------------------------
+# FOOTER
+# ---------------------------------------------------
 st.markdown("---")
 st.caption("Developed for rural Tamil users — Translation • Voice • Legal Awareness • Smart Feedback")
+
 
 
