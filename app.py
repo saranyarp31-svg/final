@@ -1,5 +1,4 @@
 import streamlit as st
-from deep_translator import GoogleTranslator
 import pandas as pd
 import requests
 import urllib.parse
@@ -17,7 +16,22 @@ st.write("English → Tamil Translation • Tamil Voice • Legal Awareness • 
 
 
 # ---------------------------------------------------
-# SIMPLE GOOGLE TTS (100% works on Streamlit Cloud)
+# LibreTranslate – Stable Tamil Translation
+# ---------------------------------------------------
+def translate_to_tamil(text):
+    url = "https://libretranslate.de/translate"  # free public endpoint
+    payload = {
+        "q": text,
+        "source": "en",
+        "target": "ta",
+        "format": "text"
+    }
+    response = requests.post(url, data=payload)
+    return response.json()['translatedText']
+
+
+# ---------------------------------------------------
+# SIMPLE GOOGLE TTS (Lightweight, Reliable)
 # ---------------------------------------------------
 def generate_audio(text):
     try:
@@ -46,7 +60,6 @@ def generate_audio(text):
 # ---------------------------------------------------
 def append_feedback(data):
     df = pd.DataFrame([data])
-
     file = "user_feedback.csv"
 
     if os.path.exists(file):
@@ -66,7 +79,9 @@ def detect_legal_section(text):
     return None
 
 
-# Initialize session variables
+# ---------------------------------------------------
+# Session State Setup
+# ---------------------------------------------------
 if "show_detail_buttons" not in st.session_state:
     st.session_state.show_detail_buttons = False
 if "last_input" not in st.session_state:
@@ -87,11 +102,10 @@ if st.button("Translate & Analyze"):
         st.warning("⚠️ Please enter text.")
         st.stop()
 
-    # Save input
     st.session_state.last_input = user_input
 
-    # Tamil Translation
-    tamil_text = GoogleTranslator(source="auto", target="ta").translate(user_input)
+    # Translate to Tamil using LibreTranslate
+    tamil_text = translate_to_tamil(user_input)
     st.session_state["last_tamil"] = tamil_text
 
     st.subheader("📌 தமிழ் மொழிபெயர்ப்பு:")
@@ -121,8 +135,8 @@ if st.button("Translate & Analyze"):
 """)
 
         # Tamil voice for legal explanation
-        legal_audio = generate_audio(legal["tamil"])
         st.write("### 🔊 சட்ட விளக்கம் (குரல்)")
+        legal_audio = generate_audio(legal["tamil"])
         if legal_audio:
             st.audio(legal_audio)
 
@@ -132,14 +146,14 @@ if st.button("Translate & Analyze"):
 
 
 # ---------------------------------------------------
-# FEEDBACK SECTION (Restored Working Version)
+# FEEDBACK SECTION (Working Version)
 # ---------------------------------------------------
 st.divider()
 st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
 
 if st.session_state.last_input:
-    c1, c2 = st.columns(2)
 
+    c1, c2 = st.columns(2)
     with c1:
         if st.button("✅ Understand"):
             append_feedback({
@@ -156,6 +170,7 @@ if st.session_state.last_input:
         if st.button("❌ Not Understand"):
             st.session_state.show_detail_buttons = True
 
+    # Show detailed feedback options
     if st.session_state.show_detail_buttons:
         st.markdown("### 😕 எது புரியவில்லை?")
 
