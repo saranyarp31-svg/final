@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import urllib.parse
 import os
+import uuid
 from datetime import datetime
 from legal_db import LEGAL_DB
 
@@ -39,28 +40,34 @@ def translate_to_tamil(text):
 
 
 # ---------------------------------------------------
-# SIMPLE GOOGLE TTS (TAMIL)
+# LONG TEXT TAMIL TTS (CHUNK PROCESSING FIX)
 # ---------------------------------------------------
 def generate_audio(text):
-    try:
-        text_encoded = urllib.parse.quote(text)
-        url = (
-            f"https://translate.google.com/translate_tts?"
-            f"ie=UTF-8&q={text_encoded}&tl=ta&client=tw-ob"
-        )
 
-        audio_file = "tamil_voice.mp3"
-        response = requests.get(url)
+    chunk_size = 180
+    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    audio_files = []
 
-        if response.status_code == 200:
-            with open(audio_file, "wb") as f:
-                f.write(response.content)
-            return audio_file
-        else:
-            return None
+    for chunk in chunks:
+        try:
+            text_encoded = urllib.parse.quote(chunk)
+            url = (
+                f"https://translate.google.com/translate_tts?"
+                f"ie=UTF-8&q={text_encoded}&tl=ta&client=tw-ob"
+            )
 
-    except Exception:
-        return None
+            filename = f"voice_{uuid.uuid4()}.mp3"
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                with open(filename, "wb") as f:
+                    f.write(response.content)
+                audio_files.append(filename)
+
+        except:
+            continue
+
+    return audio_files
 
 
 # ---------------------------------------------------
@@ -112,20 +119,21 @@ if st.button("Translate & Analyze"):
 
     st.session_state.last_input = user_input
 
-    # Translate to Tamil using MyMemory (stable)
+    # Translate to Tamil using MyMemory
     tamil_text = translate_to_tamil(user_input)
     st.session_state["last_tamil"] = tamil_text
 
     st.subheader("📌 தமிழ் மொழிபெயர்ப்பு:")
     st.success(tamil_text)
 
-    # Tamil Voice Output
     st.write("### 🔊 தமிழ் குரல்")
-    audio_file = generate_audio(tamil_text)
-    if audio_file:
-        st.audio(audio_file)
 
-    # Legal Detection
+    audio_parts = generate_audio(tamil_text)
+    if audio_parts:
+        for part in audio_parts:
+            st.audio(part)
+
+    # Legal Awareness
     st.subheader("⚖️ சட்ட விழிப்புணர்வு (தமிழில்):")
 
     legal = detect_legal_section(user_input)
@@ -142,11 +150,11 @@ if st.button("Translate & Analyze"):
 **📚 உதாரணம்:** {legal['example']}
 """)
 
-        # Tamil voice for legal explanation
         st.write("### 🔊 சட்ட விளக்கம் (குரல்)")
-        legal_audio = generate_audio(legal["tamil"])
-        if legal_audio:
-            st.audio(legal_audio)
+        legal_audio_parts = generate_audio(legal["tamil"])
+        if legal_audio_parts:
+            for part in legal_audio_parts:
+                st.audio(part)
 
     else:
         st.session_state["last_sections"] = []
@@ -162,6 +170,7 @@ st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
 if st.session_state.last_input:
 
     c1, c2 = st.columns(2)
+
     with c1:
         if st.button("✅ Understand"):
             append_feedback({
