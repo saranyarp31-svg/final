@@ -17,39 +17,29 @@ st.write("English → Tamil Translation • Tamil Voice • Legal Awareness • 
 
 
 # ---------------------------------------------------
-# LIBRE TRANSLATE (2-Tier Fallback, No Crash)
+# 100% STABLE TAMIL TRANSLATION (MYMEMORY API)
 # ---------------------------------------------------
 def translate_to_tamil(text):
 
-    servers = [
-        "https://libretranslate.de/translate",  # primary
-        "https://translate.argosopentech.com/translate"  # backup
-    ]
+    text_encoded = urllib.parse.quote(text)
 
-    payload = {
-        "q": text,
-        "source": "en",
-        "target": "ta",
-        "format": "text"
-    }
+    url = f"https://api.mymemory.translated.net/get?q={text_encoded}&langpair=en|ta"
 
-    for server in servers:
-        try:
-            response = requests.post(server, data=payload, timeout=10)
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
 
-            if response.status_code == 200:
-                data = response.json()
-                if "translatedText" in data:
-                    return data["translatedText"]
+        if "responseData" in data and "translatedText" in data["responseData"]:
+            return data["responseData"]["translatedText"]
 
-        except Exception:
-            continue
+        return "⚠️ Unable to translate right now."
 
-    return "⚠️ Translation service temporarily unavailable. Please try again."
+    except Exception:
+        return "⚠️ Translation service temporarily unavailable."
 
 
 # ---------------------------------------------------
-# SIMPLE GOOGLE TTS (Lightweight + Reliable)
+# SIMPLE GOOGLE TTS (TAMIL)
 # ---------------------------------------------------
 def generate_audio(text):
     try:
@@ -113,7 +103,7 @@ user_input = st.text_area("Enter English text:", height=150)
 
 
 # ---------------------------------------------------
-# MAIN PROCESS: TRANSLATE & ANALYZE
+# MAIN PROCESS
 # ---------------------------------------------------
 if st.button("Translate & Analyze"):
     if not user_input.strip():
@@ -122,7 +112,7 @@ if st.button("Translate & Analyze"):
 
     st.session_state.last_input = user_input
 
-    # Translate to Tamil (stable + fallback)
+    # Translate to Tamil using MyMemory (stable)
     tamil_text = translate_to_tamil(user_input)
     st.session_state["last_tamil"] = tamil_text
 
@@ -164,7 +154,7 @@ if st.button("Translate & Analyze"):
 
 
 # ---------------------------------------------------
-# FEEDBACK SECTION (WORKING + SMART UI)
+# FEEDBACK SECTION
 # ---------------------------------------------------
 st.divider()
 st.subheader("🗣️ பயனர் கருத்து (User Feedback)")
@@ -188,7 +178,6 @@ if st.session_state.last_input:
         if st.button("❌ Not Understand"):
             st.session_state.show_detail_buttons = True
 
-    # Extra options when user selects "Not Understand"
     if st.session_state.show_detail_buttons:
         st.markdown("### 😕 எது புரியவில்லை?")
 
@@ -239,6 +228,7 @@ else:
 # ---------------------------------------------------
 st.markdown("---")
 st.caption("Developed for rural Tamil users — Translation • Voice • Legal Awareness • Smart Feedback")
+
 
 
 
